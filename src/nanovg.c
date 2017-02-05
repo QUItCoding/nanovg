@@ -2173,6 +2173,12 @@ void nvgCircle(NVGcontext* ctx, float cx, float cy, float r)
 	nvgEllipse(ctx, cx,cy, r,r);
 }
 
+void nvgSetAntialias(NVGcontext* ctx, float antialias)
+{
+	antialias = nvg__clampf(antialias, 0.0f, 10.0f);
+	ctx->fringeWidth = antialias / ctx->devicePxRatio;
+}
+
 void nvgDebugDumpPathCache(NVGcontext* ctx)
 {
 	const NVGpath* path;

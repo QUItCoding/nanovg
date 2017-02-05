@@ -505,6 +505,9 @@ void nvgFill(NVGcontext* ctx);
 // Fills the current path with current stroke style.
 void nvgStroke(NVGcontext* ctx);
 
+// Set antialiasing amount for painting in pixels. Default is 1.0.
+void nvgSetAntialias(NVGcontext* ctx, float antialias);
+
 
 //
 // Text
