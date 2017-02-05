@@ -571,6 +571,9 @@ void nvgTextLineHeight(NVGcontext* ctx, float lineHeight);
 // Sets the text align of current text style, see NVGalign for options.
 void nvgTextAlign(NVGcontext* ctx, int align);
 
+// Sets the text to align to pixels
+void nvgTextAlignToPixels(NVGcontext* ctx, int enabled);
+
 // Sets the font face based on specified id of current text style.
 void nvgFontFaceId(NVGcontext* ctx, int font);
 

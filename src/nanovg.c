@@ -2324,6 +2324,11 @@ void nvgTextAlign(NVGcontext* ctx, int align)
 	state->textAlign = align;
 }
 
+void nvgTextAlignToPixels(NVGcontext* ctx, int enabled)
+{
+	fonsSetPixelAlignText(ctx->fs, enabled);
+}
+
 void nvgFontFaceId(NVGcontext* ctx, int font)
 {
 	NVGstate* state = nvg__getState(ctx);

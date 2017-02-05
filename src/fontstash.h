@@ -111,6 +111,7 @@ void fonsSetColor(FONScontext* s, unsigned int color);
 void fonsSetSpacing(FONScontext* s, float spacing);
 void fonsSetBlur(FONScontext* s, float blur);
 void fonsSetAlign(FONScontext* s, int align);
+void fonsSetPixelAlignText(FONScontext* s, int enabled);
 void fonsSetFont(FONScontext* s, int font);
 
 // Draw text
@@ -385,6 +386,7 @@ struct FONSstate
 {
 	int font;
 	int align;
+	int pixelAlignText;
 	float size;
 	unsigned int color;
 	float blur;
@@ -797,6 +799,11 @@ void fonsSetAlign(FONScontext* stash, int align)
 	fons__getState(stash)->align = align;
 }
 
+void fonsSetPixelAlignText(FONScontext* stash, int enabled)
+{
+	fons__getState(stash)->pixelAlignText = enabled;
+}
+
 void fonsSetFont(FONScontext* stash, int font)
 {
 	fons__getState(stash)->font = font;
@@ -832,6 +839,7 @@ void fonsClearState(FONScontext* stash)
 	state->font = 0;
 	state->blur = 0;
 	state->spacing = 0;
+	state->pixelAlignText = 1; // true
 	state->align = FONS_ALIGN_LEFT | FONS_ALIGN_BASELINE;
 }
 
@@ -1151,10 +1159,11 @@ static void fons__getQuad(FONScontext* stash, FONSfont* font,
 						   float scale, float spacing, float* x, float* y, FONSquad* q)
 {
 	float rx,ry,xoff,yoff,x0,y0,x1,y1;
+	int pixelAlignText = fons__getState(stash)->pixelAlignText;
 
 	if (prevGlyphIndex != -1) {
 		float adv = fons__tt_getGlyphKernAdvance(&font->font, prevGlyphIndex, glyph->index) * scale;
-		*x += (int)(adv + spacing + 0.5f);
+		*x += (adv + spacing);
 	}
 
 	// Each glyph has 2px border to allow good interpolation,
@@ -1168,8 +1177,13 @@ static void fons__getQuad(FONScontext* stash, FONSfont* font,
 	y1 = (float)(glyph->y1-1);
 
 	if (stash->params.flags & FONS_ZERO_TOPLEFT) {
-		rx = (float)(int)(*x + xoff);
-		ry = (float)(int)(*y + yoff);
+		if (pixelAlignText) {
+			rx = (float)(int)(*x + 0.5f + xoff);
+			ry = (float)(int)(*y + 0.5f + yoff);
+		} else {
+			rx = (*x + xoff);
+			ry = (*y + yoff);
+		}
 
 		q->x0 = rx;
 		q->y0 = ry;
@@ -1181,8 +1195,13 @@ static void fons__getQuad(FONScontext* stash, FONSfont* font,
 		q->s1 = x1 * stash->itw;
 		q->t1 = y1 * stash->ith;
 	} else {
-		rx = (float)(int)(*x + xoff);
-		ry = (float)(int)(*y - yoff);
+		if (pixelAlignText) {
+			rx = (float)(int)(*x + 0.5f + xoff);
+			ry = (float)(int)(*y + 0.5f - yoff);
+		} else {
+			rx = (*x + xoff);
+			ry = (*y - yoff);
+		}
 
 		q->x0 = rx;
 		q->y0 = ry;
@@ -1195,7 +1214,11 @@ static void fons__getQuad(FONScontext* stash, FONSfont* font,
 		q->t1 = y1 * stash->ith;
 	}
 
-	*x += (int)(glyph->xadv / 10.0f + 0.5f);
+	if (pixelAlignText) {
+		*x += (int)(glyph->xadv / 10.0f + 0.5f);
+	} else {
+		*x += (glyph->xadv / 10.0f);
+	}
 }
 
 static void fons__flush(FONScontext* stash)
