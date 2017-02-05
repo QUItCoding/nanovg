@@ -418,6 +418,16 @@ void nvgEndFrame(NVGcontext* ctx)
 	}
 }
 
+NVGdrawDebug nvgDrawDebug(NVGcontext* ctx)
+{
+	NVGdrawDebug drawDebug;
+	drawDebug.drawCallCount = ctx->drawCallCount;
+	drawDebug.fillTriCount = ctx->fillTriCount;
+	drawDebug.strokeTriCount = ctx->strokeTriCount;
+	drawDebug.textTriCount = ctx->textTriCount;
+	return drawDebug;
+}
+
 NVGcolor nvgRGB(unsigned char r, unsigned char g, unsigned char b)
 {
 	return nvgRGBA(r,g,b,255);

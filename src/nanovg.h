@@ -135,6 +135,14 @@ struct NVGtextRow {
 };
 typedef struct NVGtextRow NVGtextRow;
 
+struct NVGdrawDebug {
+	int drawCallCount;
+	int fillTriCount;
+	int strokeTriCount;
+	int textTriCount;
+};
+typedef struct NVGdrawDebug NVGdrawDebug;
+
 enum NVGimageFlags {
     NVG_IMAGE_GENERATE_MIPMAPS	= 1<<0,     // Generate mipmaps during creation of the image.
 	NVG_IMAGE_REPEATX			= 1<<1,		// Repeat image in X direction.
@@ -159,6 +167,9 @@ void nvgCancelFrame(NVGcontext* ctx);
 
 // Ends drawing flushing remaining render state.
 void nvgEndFrame(NVGcontext* ctx);
+
+// Returns drawing debug information.
+NVGdrawDebug nvgDrawDebug(NVGcontext* ctx);
 
 //
 // Composite operation
