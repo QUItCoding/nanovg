@@ -221,7 +221,7 @@ typedef struct GLNVGfragUniforms GLNVGfragUniforms;
 struct GLNVGcontext {
 	GLNVGshader shader;
 	GLNVGtexture* textures;
-	float view[2];
+	float view[4];
 	int ntextures;
 	int ctextures;
 	int textureId;
@@ -504,13 +504,13 @@ static int glnvg__renderCreate(void* uptr)
 
 	static const char* fillVertShader =
 		"#ifdef NANOVG_GL3\n"
-		"	uniform vec2 viewSize;\n"
+		"	uniform vec4 viewSize;\n"
 		"	in vec2 vertex;\n"
 		"	in vec2 tcoord;\n"
 		"	out vec2 ftcoord;\n"
 		"	out vec2 fpos;\n"
 		"#else\n"
-		"	uniform vec2 viewSize;\n"
+		"	uniform vec4 viewSize;\n"
 		"	attribute vec2 vertex;\n"
 		"	attribute vec2 tcoord;\n"
 		"	varying vec2 ftcoord;\n"
@@ -519,7 +519,7 @@ static int glnvg__renderCreate(void* uptr)
 		"void main(void) {\n"
 		"	ftcoord = tcoord;\n"
 		"	fpos = vertex;\n"
-		"	gl_Position = vec4(2.0*vertex.x/viewSize.x - 1.0, 1.0 - 2.0*vertex.y/viewSize.y, 0, 1);\n"
+	    "	gl_Position = vec4(2.0*(viewSize.x + vertex.x)/viewSize.z - 1.0, 1.0 - 2.0*(viewSize.y + vertex.y)/viewSize.w, 0, 1);\n"
 		"}\n";
 
 	static const char* fillFragShader =
@@ -958,11 +958,13 @@ static void glnvg__setUniforms(GLNVGcontext* gl, int uniformOffset, int image)
 	}
 }
 
-static void glnvg__renderViewport(void* uptr, int width, int height, float devicePixelRatio)
+static void glnvg__renderViewport(void* uptr, int x, int y, int width, int height, float devicePixelRatio)
 {
 	GLNVGcontext* gl = (GLNVGcontext*)uptr;
-	gl->view[0] = (float)width;
-	gl->view[1] = (float)height;
+	gl->view[0] = (float)x;
+	gl->view[1] = (float)y;
+	gl->view[2] = (float)width;
+	gl->view[3] = (float)height;
 }
 
 static void glnvg__fill(GLNVGcontext* gl, GLNVGcall* call)
@@ -1178,7 +1180,7 @@ static void glnvg__renderFlush(void* uptr, NVGcompositeOperationState compositeO
 
 		// Set view and texture just once per frame.
 		glUniform1i(gl->shader.loc[GLNVG_LOC_TEX], 0);
-		glUniform2fv(gl->shader.loc[GLNVG_LOC_VIEWSIZE], 1, gl->view);
+		glUniform4fv(gl->shader.loc[GLNVG_LOC_VIEWSIZE], 1, gl->view);
 
 #if NANOVG_GL_USE_UNIFORMBUFFER
 		glBindBuffer(GL_UNIFORM_BUFFER, gl->fragBuf);
