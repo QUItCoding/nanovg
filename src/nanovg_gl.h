@@ -113,6 +113,10 @@ enum NVGimageFlagsGL {
 #include <math.h>
 #include "nanovg.h"
 
+#ifdef __APPLE__
+#   include <OpenGL/glext.h>
+#endif
+
 enum GLNVGuniformLoc {
 	GLNVG_LOC_VIEWSIZE,
 	GLNVG_LOC_TEX,
@@ -150,6 +154,15 @@ struct GLNVGtexture {
 };
 typedef struct GLNVGtexture GLNVGtexture;
 
+struct GLNVGblend
+{
+	GLenum srcRGB;
+	GLenum dstRGB;
+	GLenum srcAlpha;
+	GLenum dstAlpha;
+};
+typedef struct GLNVGblend GLNVGblend;
+
 enum GLNVGcallType {
 	GLNVG_NONE = 0,
 	GLNVG_FILL,
@@ -166,6 +179,7 @@ struct GLNVGcall {
 	int triangleOffset;
 	int triangleCount;
 	int uniformOffset;
+	GLNVGblend blendFunc;
 };
 typedef struct GLNVGcall GLNVGcall;
 
@@ -256,6 +270,7 @@ struct GLNVGcontext {
 	GLenum stencilFunc;
 	GLint stencilFuncRef;
 	GLuint stencilFuncMask;
+	GLNVGblend blendFunc;
 	#endif
 };
 typedef struct GLNVGcontext GLNVGcontext;
@@ -314,6 +329,21 @@ static void glnvg__stencilFunc(GLNVGcontext* gl, GLenum func, GLint ref, GLuint 
 	}
 #else
 	glStencilFunc(func, ref, mask);
+#endif
+}
+static void glnvg__blendFuncSeparate(GLNVGcontext* gl, const GLNVGblend* blend)
+{
+#if NANOVG_GL_USE_STATE_FILTER
+	if ((gl->blendFunc.srcRGB != blend->srcRGB) ||
+		(gl->blendFunc.dstRGB != blend->dstRGB) ||
+		(gl->blendFunc.srcAlpha != blend->srcAlpha) ||
+		(gl->blendFunc.dstAlpha != blend->dstAlpha)) {
+		
+		gl->blendFunc = *blend;
+		glBlendFuncSeparate(blend->srcRGB, blend->dstRGB, blend->srcAlpha,blend->dstAlpha);
+	}
+#else
+	glBlendFuncSeparate(blend->srcRGB, blend->dstRGB, blend->srcAlpha,blend->dstAlpha);
 #endif
 }
 
@@ -1118,19 +1148,24 @@ static GLenum glnvg_convertBlendFuncFactor(int factor)
 	return GL_INVALID_ENUM;
 }
 
-static void glnvg__blendCompositeOperation(NVGcompositeOperationState op)
+static GLNVGblend glnvg__blendCompositeOperation(NVGcompositeOperationState op)
 {
-	GLenum srcRGB = glnvg_convertBlendFuncFactor(op.srcRGB);
-	GLenum dstRGB = glnvg_convertBlendFuncFactor(op.dstRGB);
-	GLenum srcAlpha = glnvg_convertBlendFuncFactor(op.srcAlpha);
-	GLenum dstAlpha = glnvg_convertBlendFuncFactor(op.dstAlpha);
-	if (srcRGB == GL_INVALID_ENUM || dstRGB == GL_INVALID_ENUM || srcAlpha == GL_INVALID_ENUM || dstAlpha == GL_INVALID_ENUM)
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	else
-		glBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha);
+	GLNVGblend blend;
+	blend.srcRGB = glnvg_convertBlendFuncFactor(op.srcRGB);
+	blend.dstRGB = glnvg_convertBlendFuncFactor(op.dstRGB);
+	blend.srcAlpha = glnvg_convertBlendFuncFactor(op.srcAlpha);
+	blend.dstAlpha = glnvg_convertBlendFuncFactor(op.dstAlpha);
+	if (blend.srcRGB == GL_INVALID_ENUM || blend.dstRGB == GL_INVALID_ENUM || blend.srcAlpha == GL_INVALID_ENUM || blend.dstAlpha == GL_INVALID_ENUM)
+	{
+		blend.srcRGB = GL_ONE;
+		blend.dstRGB = GL_ONE_MINUS_SRC_ALPHA;
+		blend.srcAlpha = GL_ONE;
+		blend.dstAlpha = GL_ONE_MINUS_SRC_ALPHA;
+	}
+	return blend;
 }
 
-static void glnvg__renderFlush(void* uptr, NVGcompositeOperationState compositeOperation)
+static void glnvg__renderFlush(void* uptr)
 {
 	GLNVGcontext* gl = (GLNVGcontext*)uptr;
 	int i;
@@ -1140,7 +1175,6 @@ static void glnvg__renderFlush(void* uptr, NVGcompositeOperationState compositeO
 		// Setup require GL state.
 		glUseProgram(gl->shader.prog);
 
-		glnvg__blendCompositeOperation(compositeOperation);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
 		glFrontFace(GL_CCW);
@@ -1159,6 +1193,10 @@ static void glnvg__renderFlush(void* uptr, NVGcompositeOperationState compositeO
 		gl->stencilFunc = GL_ALWAYS;
 		gl->stencilFuncRef = 0;
 		gl->stencilFuncMask = 0xffffffff;
+		gl->blendFunc.srcRGB = GL_INVALID_ENUM;
+		gl->blendFunc.srcAlpha = GL_INVALID_ENUM;
+		gl->blendFunc.dstRGB = GL_INVALID_ENUM;
+		gl->blendFunc.dstAlpha = GL_INVALID_ENUM;
 		#endif
 
 #if NANOVG_GL_USE_UNIFORMBUFFER
@@ -1188,6 +1226,7 @@ static void glnvg__renderFlush(void* uptr, NVGcompositeOperationState compositeO
 
 		for (i = 0; i < gl->ncalls; i++) {
 			GLNVGcall* call = &gl->calls[i];
+			glnvg__blendFuncSeparate(gl,&call->blendFunc);
 			if (call->type == GLNVG_FILL)
 				glnvg__fill(gl, call);
 			else if (call->type == GLNVG_CONVEXFILL)
@@ -1303,7 +1342,7 @@ static void glnvg__vset(NVGvertex* vtx, float x, float y, float u, float v)
 	vtx->v = v;
 }
 
-static void glnvg__renderFill(void* uptr, NVGpaint* paint, NVGscissor* scissor, float fringe,
+static void glnvg__renderFill(void* uptr, NVGpaint* paint, NVGcompositeOperationState compositeOperation, NVGscissor* scissor, float fringe,
 							  const float* bounds, const NVGpath* paths, int npaths)
 {
 	GLNVGcontext* gl = (GLNVGcontext*)uptr;
@@ -1319,6 +1358,7 @@ static void glnvg__renderFill(void* uptr, NVGpaint* paint, NVGscissor* scissor, 
 	if (call->pathOffset == -1) goto error;
 	call->pathCount = npaths;
 	call->image = paint->image;
+	call->blendFunc = glnvg__blendCompositeOperation(compositeOperation);
 
 	if (npaths == 1 && paths[0].convex)
 		call->type = GLNVG_CONVEXFILL;
@@ -1384,7 +1424,7 @@ error:
 	if (gl->ncalls > 0) gl->ncalls--;
 }
 
-static void glnvg__renderStroke(void* uptr, NVGpaint* paint, NVGscissor* scissor, float fringe,
+static void glnvg__renderStroke(void* uptr, NVGpaint* paint, NVGcompositeOperationState compositeOperation, NVGscissor* scissor, float fringe,
 								float strokeWidth, const NVGpath* paths, int npaths)
 {
 	GLNVGcontext* gl = (GLNVGcontext*)uptr;
@@ -1398,6 +1438,7 @@ static void glnvg__renderStroke(void* uptr, NVGpaint* paint, NVGscissor* scissor
 	if (call->pathOffset == -1) goto error;
 	call->pathCount = npaths;
 	call->image = paint->image;
+	call->blendFunc = glnvg__blendCompositeOperation(compositeOperation);
 
 	// Allocate vertices for all the paths.
 	maxverts = glnvg__maxVertCount(paths, npaths);
@@ -1439,7 +1480,7 @@ error:
 	if (gl->ncalls > 0) gl->ncalls--;
 }
 
-static void glnvg__renderTriangles(void* uptr, NVGpaint* paint, NVGscissor* scissor,
+static void glnvg__renderTriangles(void* uptr, NVGpaint* paint, NVGcompositeOperationState compositeOperation, NVGscissor* scissor,
 								   const NVGvertex* verts, int nverts)
 {
 	GLNVGcontext* gl = (GLNVGcontext*)uptr;
@@ -1450,6 +1491,7 @@ static void glnvg__renderTriangles(void* uptr, NVGpaint* paint, NVGscissor* scis
 
 	call->type = GLNVG_TRIANGLES;
 	call->image = paint->image;
+	call->blendFunc = glnvg__blendCompositeOperation(compositeOperation);
 
 	// Allocate vertices for all the paths.
 	call->triangleOffset = glnvg__allocVerts(gl, nverts);
