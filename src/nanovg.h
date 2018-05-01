@@ -165,7 +165,7 @@ void nvgBeginFrame(NVGcontext* ctx, float windowWidth, float windowHeight, float
 // Begin drawing a new frame
 // Same as nvgBeginFrame() except instead of drawing from point (0,0),
 // allows drawing from point (windowX, windowY)
-void nvgBeginFrameAt(NVGcontext* ctx, int windowX, int windowY, int windowWidth, int windowHeight, float devicePixelRatio);
+void nvgBeginFrameAt(NVGcontext* ctx, float windowX, float windowY, float windowWidth, float windowHeight, float devicePixelRatio);
 
 // Cancels drawing the current frame.
 void nvgCancelFrame(NVGcontext* ctx);

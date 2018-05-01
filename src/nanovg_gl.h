@@ -993,10 +993,10 @@ static void glnvg__renderViewport(void* uptr, float x, float y, float width, flo
 {
 	NVG_NOTUSED(devicePixelRatio);
 	GLNVGcontext* gl = (GLNVGcontext*)uptr;
-        gl->view[0] = x;
-        gl->view[1] = y;
-        gl->view[2] = width;
-        gl->view[3] = height;
+	gl->view[0] = x;
+	gl->view[1] = y;
+	gl->view[2] = width;
+	gl->view[3] = height;
 }
 
 static void glnvg__fill(GLNVGcontext* gl, GLNVGcall* call)

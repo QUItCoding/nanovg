@@ -365,10 +365,10 @@ void nvgDeleteInternal(NVGcontext* ctx)
 
 void nvgBeginFrame(NVGcontext* ctx, float windowWidth, float windowHeight, float devicePixelRatio)
 {
-	nvgBeginFrameAt(ctx, 0, 0, windowWidth, windowHeight, devicePixelRatio);
+	nvgBeginFrameAt(ctx, 0.0f, 0.0f, windowWidth, windowHeight, devicePixelRatio);
 }
 
-void nvgBeginFrameAt(NVGcontext* ctx, int windowX, int windowY, int windowWidth, int windowHeight, float devicePixelRatio)
+void nvgBeginFrameAt(NVGcontext* ctx, float windowX, float windowY, float windowWidth, float windowHeight, float devicePixelRatio)
 {
 /*	printf("Tris: draws:%d  fill:%d  stroke:%d  text:%d  TOT:%d\n",
 		ctx->drawCallCount, ctx->fillTriCount, ctx->strokeTriCount, ctx->textTriCount,
